@@ -1,3 +1,5 @@
+#![feature(convert)]
+
 extern crate sheets;
 extern crate window;
 extern crate glutin_window;
@@ -8,6 +10,5 @@ extern crate event;
 pub mod ui;
 
 fn main() {
-    let w = ui::Window::new();
-    w.run();
+    ui::run();
 }
