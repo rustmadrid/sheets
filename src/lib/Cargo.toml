@@ -1,0 +1,19 @@
+[package]
+name = "sheets_lib"
+version = "0.0.1"
+authors = ["Toni Cárdenas <toni@tcardenas.me>"]
+
+[dependencies.pistoncore-glutin_window]
+git = "https://github.com/PistonDevelopers/glutin_window"
+
+[dependencies.piston2d-opengl_graphics]
+git = "https://github.com/PistonDevelopers/opengl_graphics"
+
+[dependencies.conrod]
+git = "git://github.com/pistondevelopers/conrod.git"
+
+[dependencies.pistoncore-window]
+git = "https://github.com/pistondevelopers/window"
+
+[dependencies.pistoncore-event]
+git = "https://github.com/pistondevelopers/event"

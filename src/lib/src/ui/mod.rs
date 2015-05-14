@@ -2,32 +2,16 @@ use ::glutin_window::{GlutinWindow};
 use ::conrod;
 use ::opengl_graphics::glyph_cache::GlyphCache;
 use ::opengl_graphics::{OpenGL, GlGraphics};
+use ::sheet::Coord;
 
 const WINDOW_WIDTH: u32 = 800;
 const WINDOW_HEIGHT: u32 = 600;
 const CELL_WIDTH: usize = WINDOW_WIDTH as usize / 10;
 const CELL_HEIGHT: usize = WINDOW_HEIGHT as usize / 20;
-const GRID_COLUMNS: usize = WINDOW_WIDTH as usize / CELL_WIDTH;
-const GRID_ROWS: usize = WINDOW_HEIGHT as usize / CELL_HEIGHT;
+const GRID_COLUMNS: usize = WINDOW_WIDTH as usize / CELL_WIDTH - 1;
+const GRID_ROWS: usize = WINDOW_HEIGHT as usize / CELL_HEIGHT - 1;
 const NUM_CELLS: usize = GRID_COLUMNS * GRID_ROWS;
 const TEXTBOX_ID: usize = NUM_CELLS + 1;
-
-#[derive(Debug, Clone, Copy)]
-struct CellCoord(usize, usize);
-
-impl CellCoord {
-    // fn new_letter<'a>(col: &'a str, row: usize) -> Self {
-    //     let mut i = 0;
-    //     CellCoord(
-    //         col.bytes().fold(0, |acc, item| {
-    //             let ret = acc + (i * 10 + (item - 'A' as u8) as usize);
-    //             i += 1;
-    //             ret
-    //         }),
-    //         row - 1
-    //     )
-    // }
-}
 
 struct CellGrid(Vec<Option<String>>);
 
@@ -41,13 +25,13 @@ impl CellGrid {
     }
 
     fn get_str(&self, col: usize, row: usize) -> &str {
-        match self[CellCoord(col, row)] {
+        match self[Coord(col, row)] {
             Some(ref x) => x.as_str(),
             None => ""
         }
     }
 
-    fn set<'a, 'b>(&mut self, coord: CellCoord, val: &'b str) {
+    fn set<'a, 'b>(&mut self, coord: Coord, val: &'b str) {
         self[coord] = match val {
             "" => None,
             x => Some(x.to_string()),
@@ -55,17 +39,17 @@ impl CellGrid {
     }
 }
 
-impl ::std::ops::Index<CellCoord> for CellGrid {
+impl ::std::ops::Index<Coord> for CellGrid {
     type Output = Option<String>;
 
-    fn index<'a>(&'a self, CellCoord(col, row): CellCoord) -> &'a Self::Output {
+    fn index<'a>(&'a self, Coord(col, row): Coord) -> &'a Self::Output {
         let &CellGrid(ref m) = self;
         &m[col * GRID_ROWS + row]
     }
 }
 
-impl ::std::ops::IndexMut<CellCoord> for CellGrid {
-    fn index_mut<'a>(&'a mut self, CellCoord(col, row): CellCoord) -> &'a mut Self::Output {
+impl ::std::ops::IndexMut<Coord> for CellGrid {
+    fn index_mut<'a>(&'a mut self, Coord(col, row): Coord) -> &'a mut Self::Output {
         let &mut CellGrid(ref mut m) = self;
         &mut m[col * GRID_ROWS + row]
     }
@@ -73,7 +57,7 @@ impl ::std::ops::IndexMut<CellCoord> for CellGrid {
 
 pub struct UI {
     grid: CellGrid,
-    editing: Option<CellCoord>,
+    editing: Option<Coord>,
     editing_text: String,
 }
 
@@ -141,7 +125,7 @@ fn draw_ui<'a>(gl: &mut GlGraphics, ui: &mut conrod::Ui<GlyphCache<'a>>, state: 
             .point(pos)
             .dim(dim)
             .react(|| {
-                *editing = Some(CellCoord(col, row));
+                *editing = Some(Coord(col, row));
                 *editing_text = grid.get_str(col, row).to_string();
             })
             .enabled(if let Some(_) = state.editing { false } else { true })
