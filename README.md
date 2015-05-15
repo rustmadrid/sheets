@@ -1,6 +1,6 @@
 # sheets
 
-[![Build Status](https://travis-ci.org/rustmadrid/sheets.png?branch=master)](https://travis-ci.org/rustmadrid/sheets)
+[![Build Status](https://travis-ci.org/rustmadrid/sheets.svg?branch=master)](https://travis-ci.org/rustmadrid/sheets)
 
 This is an example repo for [Rust Madrid's 1.0 lauch event](http://www.meetup.com/Rust-Madrid/events/222118916/).
 
