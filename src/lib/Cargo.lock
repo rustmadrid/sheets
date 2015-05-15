@@ -3,6 +3,7 @@ name = "sheets_lib"
 version = "0.0.1"
 dependencies = [
  "conrod 0.0.10 (git+git://github.com/pistondevelopers/conrod.git)",
+ "peg 0.2.3 (git+https://github.com/kevinmehall/rust-peg)",
  "piston2d-opengl_graphics 0.0.16 (git+https://github.com/PistonDevelopers/opengl_graphics)",
  "pistoncore-event 0.1.3 (git+https://github.com/pistondevelopers/event)",
  "pistoncore-glutin_window 0.0.8 (git+https://github.com/PistonDevelopers/glutin_window)",
@@ -305,6 +306,11 @@ dependencies = [
  "libc 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "shared_library 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "peg"
+version = "0.2.3"
+source = "git+https://github.com/kevinmehall/rust-peg#660b45572c7aa6d0ec8285870503c45ff195ed73"
 
 [[package]]
 name = "piston"

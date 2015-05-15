@@ -17,3 +17,6 @@ git = "https://github.com/pistondevelopers/window"
 
 [dependencies.pistoncore-event]
 git = "https://github.com/pistondevelopers/event"
+
+[dependencies.peg]
+git = "https://github.com/kevinmehall/rust-peg"

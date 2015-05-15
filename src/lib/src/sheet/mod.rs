@@ -89,10 +89,22 @@ impl Sheet {
     fn numeric_op<F>(&self, f: F, atoms: &Vec<Box<FormulaAtom>>) -> Result<Box<FormulaAtom>, FormulaErr>
         where F: Fn(f64, f64) -> f64
     {
+        if atoms.len() == 0 {
+            return Err(FormulaErr::Arity(1));
+        }
+
+        let mut first = true;
         let mut ret = 0.0;
         for a in atoms {
             match **a {
-                FormulaAtom::Number(x) => { ret = f(ret, x); }
+                FormulaAtom::Number(x) => { 
+                    if first {
+                        ret = x;
+                        first = false;
+                    } else {
+                        ret = f(ret, x);
+                    }
+                },
                 _ => { return Err(FormulaErr::Type("Number")) }
             }
         }
@@ -100,6 +112,7 @@ impl Sheet {
     }
 }
 
+#[derive(Clone, PartialEq, Debug)]
 pub enum Formula {
     Atom(FormulaAtom),
     Ref(Coord),
@@ -113,6 +126,7 @@ pub enum FormulaAtom {
     Number(f64),
 }
 
+#[derive(Clone, PartialEq, Debug)]
 pub enum FormulaOp {
     Add,
     Sub,
@@ -124,11 +138,35 @@ pub enum FormulaOp {
 pub enum FormulaErr {
     Ref(Coord),
     Type(&'static str),
+    Arity(u8),
 }
 
 /// The position of a cell in a spreadsheet. The cell at A1 has `Coord(0, 0)`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Coord(pub usize, pub usize);
+
+impl Coord {
+    pub fn parse(s: &str) -> Option<Self> {
+        let idx = match s.find(|c: char| c.is_numeric()) {
+            None => { return None; },
+            Some(x) => x,
+        };
+
+        let (l, r) = (&s[0..idx], &s[idx..]);
+
+        match r.parse().ok() {
+            None => None,
+            Some(x) => Some(natural_to_numeric(l, x)),
+        }
+    }
+
+    pub fn format_natural(&self) -> String {
+        let Coord(col, row) = *self;
+        let mut ret = numeric_col_to_natural(col);
+        ret.push_str(format!("{}", row + 1).as_str());
+        ret
+    }
+}
 
 /// The position of a cell in a spreadsheet in a "natural" representation.
 /// The cell at A1 has `Coord("A1", 1)`.
@@ -167,6 +205,21 @@ pub fn natural_col_to_numeric(col: &str) -> usize {
         pow *= 26;
         ret
     }) - 1
+}
+
+pub fn numeric_col_to_natural(col: usize) -> String {
+    // TODO: This is only for two letters.
+    let mut ret = "".to_string();
+    let c = col + 1;
+    let i = c / 27;
+    let rem = col - (i * 26);
+    if i > 0 {
+        ret.push((i as u8 + 'A' as u8) as char);
+    }
+    if rem > 0 {
+        ret.push((rem as u8 + 'A' as u8) as char);
+    }
+    ret
 }
 
 #[cfg(test)]
