@@ -12,7 +12,7 @@ after_success: ! '[ $TRAVIS_BRANCH = master ] &&
   cargo doc &&
 
   echo "<meta http-equiv=refresh content=0;url=`echo $TRAVIS_REPO_SLUG | cut -d ''/''
-  -f 2`/index.html>" > target/doc/index.html &&
+  -f 2`_lib/index.html>" > target/doc/index.html &&
 
   sudo pip install ghp-import &&
 
