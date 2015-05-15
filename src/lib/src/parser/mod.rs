@@ -1,6 +1,6 @@
 #![plugin(peg_syntax_ext)]
 
-use sheet::{Formula};
+use sheet::{Formula, FormulaAtom};
 
 peg! grammar(r#"
 use sheet::{Formula, FormulaAtom, FormulaOp, Coord};
@@ -25,29 +25,27 @@ ref -> Formula
     = [A-Z]+[1-9][0-9]* { Formula::Ref(Coord::parse(match_str).unwrap()) }
 
 op -> Formula
-    = f:formula_name "(" args:formula ** arg_delim ")" {
-        Formula::Op(
-            match f.as_str() {
-                "add" => FormulaOp::Add,
-                "sub" => FormulaOp::Sub,
-                "mul" => FormulaOp::Mul,
-                "div" => FormulaOp::Div,
-                "avg" => FormulaOp::Avg,
-                x => { panic!("invalid op {}.", x) },
-            },
-            args
-        )
+    = o:op_name "(" args:formula ** arg_delim ")" {
+        Formula::Op(o, args)
     }
 
 arg_delim -> ()
     = "," [ \t]* { }
 
-formula_name -> String
-    = [a-z]+ { match_str.to_string() }
+op_name -> FormulaOp
+    = "add" { FormulaOp::Add }
+    / "sub" { FormulaOp::Sub }
+    / "mul" { FormulaOp::Div }
+    / "div" { FormulaOp::Div }
+    / "avg" { FormulaOp::Avg }
 "#);
 
 pub fn parse_formula(s: &str) -> Result<Formula, grammar::ParseError> {
-    grammar::formula(s)
+    if s.len() == 0 {
+        Ok(Formula::Atom(FormulaAtom::Empty))
+    } else {
+        grammar::formula(s)
+    }
 }
 
 pub fn format_formula(f: &Formula) -> String {

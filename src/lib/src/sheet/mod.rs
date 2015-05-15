@@ -1,12 +1,16 @@
 use ::std::collections::{HashMap, HashSet};
+use ::std::sync::mpsc::{Sender, Receiver, channel};
 
 pub struct Sheet {
     cells: HashMap<Coord, Formula>,
+    selections: Vec<(Coord, Coord, Sender<(Coord, Value)>)>,
 }
+
+pub type Value = Result<Box<FormulaAtom>, FormulaErr>;
 
 impl Sheet {
     pub fn new() -> Self {
-        Sheet{cells: HashMap::new()}
+        Sheet{cells: HashMap::new(), selections: vec![]}
     }
 
     pub fn set(&mut self, coord: Coord, formula: Formula) {
@@ -15,21 +19,47 @@ impl Sheet {
         } else {
             self.cells.insert(coord, formula);
         };
+
+        let Coord(col, row) = coord;
+        for &(Coord(col_from, row_from), Coord(col_to, row_to), ref tx) in &self.selections {
+            if col >= col_from && col <= col_to && row >= row_from && row <= row_to {
+                if let Err(_) = tx.send((coord, self.value(coord))) {
+                    // TODO: Should remove here.
+                }
+            }
+        }
     }
 
-    pub fn value(&self, coord: Coord) -> Result<Box<FormulaAtom>, FormulaErr> {
+    pub fn select(&mut self, from: Coord, to: Coord) -> Receiver<(Coord, Value)> {
+        let (tx, rx) = channel();
+
+        let Coord(col_from, row_from) = from;
+        let Coord(col_to, row_to) = to;
+
+        for col in col_from .. col_to+1 {
+            for row in row_from .. row_to+1 {
+                tx.send((Coord(col, row), self.value(Coord(col, row)))).unwrap();
+            }
+        }
+
+        self.selections.push((from, to, tx));
+
+        rx
+    }
+
+    pub fn value(&self, coord: Coord) -> Value {
         match self.cells.get(&coord) {
             Some(x) => self.calc_formula(x),
             _ => Ok(Box::new(FormulaAtom::Empty)),
         }
     }
 
-    fn calc_formula(&self, formula: &Formula) -> Result<Box<FormulaAtom>, FormulaErr> {
+    fn calc_formula(&self, formula: &Formula) -> Value {
         let mut visited = HashSet::new();
         self.calc_formula_visited(formula, &mut visited)
     }
 
-    fn calc_formula_visited(&self, formula: &Formula, visited: &mut HashSet<Coord>) -> Result<Box<FormulaAtom>, FormulaErr> {
+    fn calc_formula_visited(&self, formula: &Formula, visited: &mut HashSet<Coord>) -> Value {
         match *formula {
             Formula::Atom(ref x) => Ok(Box::new(x.clone())),
             Formula::Ref(coord) => {
@@ -86,7 +116,7 @@ impl Sheet {
         }
     }
 
-    fn numeric_op<F>(&self, f: F, atoms: &Vec<Box<FormulaAtom>>) -> Result<Box<FormulaAtom>, FormulaErr>
+    fn numeric_op<F>(&self, f: F, atoms: &Vec<Box<FormulaAtom>>) -> Value
         where F: Fn(f64, f64) -> f64
     {
         if atoms.len() == 0 {
@@ -135,6 +165,7 @@ pub enum FormulaOp {
     Avg,
 }
 
+#[derive(Debug)]
 pub enum FormulaErr {
     Ref(Coord),
     Type(&'static str),

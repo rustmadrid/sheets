@@ -303,6 +303,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "peg"
+version = "0.2.3"
+source = "git+https://github.com/kevinmehall/rust-peg#660b45572c7aa6d0ec8285870503c45ff195ed73"
+
+[[package]]
 name = "piston"
 version = "0.1.1"
 source = "git+https://github.com/PistonDevelopers/piston/#e4b588cf22275acb230a4d6baace2567ea66391a"
@@ -462,6 +467,7 @@ name = "sheets_lib"
 version = "0.0.1"
 dependencies = [
  "conrod 0.0.10 (git+git://github.com/pistondevelopers/conrod.git)",
+ "peg 0.2.3 (git+https://github.com/kevinmehall/rust-peg)",
  "piston2d-opengl_graphics 0.0.16 (git+https://github.com/PistonDevelopers/opengl_graphics)",
  "pistoncore-event 0.1.3 (git+https://github.com/pistondevelopers/event)",
  "pistoncore-glutin_window 0.0.8 (git+https://github.com/PistonDevelopers/glutin_window)",
