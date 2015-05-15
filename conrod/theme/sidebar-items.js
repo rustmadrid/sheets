@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Align","The alignment of an element's dimensions with another's."],["Theme","A serializable collection of canvas and widget styling defaults."]]});
