@@ -1,6 +1,8 @@
 #![feature(convert)]
+#![feature(scoped)]
 #![feature(plugin)]
 #![plugin(peg_syntax_ext)]
+#![feature(std_misc)]
 
 extern crate window;
 extern crate glutin_window;

@@ -2,11 +2,13 @@ use ::glutin_window::{GlutinWindow};
 use ::conrod;
 use ::opengl_graphics::glyph_cache::GlyphCache;
 use ::opengl_graphics::{OpenGL, GlGraphics};
-use ::sheet::Coord;
+use ::sheet::{Coord, Value, Formula};
+use ::std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+use ::std::sync::Mutex;
 
 const WINDOW_WIDTH: u32 = 800;
 const WINDOW_HEIGHT: u32 = 600;
-const CELL_WIDTH: usize = WINDOW_WIDTH as usize / 10;
+const CELL_WIDTH: usize = WINDOW_WIDTH as usize / 5;
 const CELL_HEIGHT: usize = WINDOW_HEIGHT as usize / 20;
 const GRID_COLUMNS: usize = WINDOW_WIDTH as usize / CELL_WIDTH - 1;
 const GRID_ROWS: usize = WINDOW_HEIGHT as usize / CELL_HEIGHT - 1;
@@ -31,11 +33,11 @@ impl CellGrid {
         }
     }
 
-    fn set<'a, 'b>(&mut self, coord: Coord, val: &'b str) {
+    fn set<'a, 'b>(&'a mut self, coord: Coord, val: &'b str) {
         self[coord] = match val {
             "" => None,
             x => Some(x.to_string()),
-        };
+        }
     }
 }
 
@@ -55,34 +57,74 @@ impl ::std::ops::IndexMut<Coord> for CellGrid {
     }
 }
 
-pub struct UI {
-    grid: CellGrid,
+struct State {
     editing: Option<Coord>,
     editing_text: String,
 }
 
-pub fn run() {
+pub fn run<F>(sheet_select: &mut F, event_stream: SyncSender<UIEvent>)
+    where F: Send + FnMut(Coord, Coord) -> Receiver<(Coord, Value)>
+{
     use event::*;
+
+    let grid = Mutex::new(CellGrid::new());
+    let grid_ref = &grid;
+    let (events_sender, events_recv) = sync_channel(0);
+
+    let guard = ::std::thread::scoped(move|| {
+        let sheet_selection = sheet_select(Coord(0, 0), Coord(GRID_COLUMNS-1, GRID_ROWS-1));
+
+        let mut running = true;
+        while running {
+            select! {
+                x = events_recv.recv() => {
+                    match x {
+                        Ok(x) => if let Err(_) = event_stream.send(x) {
+                            running = false;
+                        },
+                        Err(_) => { running = false; },
+                    }  
+                },
+                x = sheet_selection.recv() => {
+                    match x {
+                        Ok((Coord(col, row), value)) => {
+                            let mut g = grid_ref.lock().unwrap();
+                            match value {
+                                Ok(v) => {
+                                    g.set(Coord(col, row), ::parser::format_formula(&Formula::Atom(*v)).as_str());
+                                },
+                                Err(x) => {
+                                    g.set(Coord(col, row), format!("<E:{:?}>", x).as_str())
+                                }
+                            }
+                        },
+                        Err(_) => { running = false; },
+                    }
+                }
+            };
+        };
+    });
+        
+    let mut state = State{
+        editing: None,
+        editing_text: "".to_string(),
+    };
     let opengl = OpenGL::_3_2;
     let window = make_window(opengl);
     let mut ui = make_ui();
     let mut gl = GlGraphics::new(opengl);
-
-    let mut state = UI {
-        grid: CellGrid::new(),
-        editing: None,
-        editing_text: "".to_string(),
-    };
 
     let event_iter = window.events().ups(180).max_fps(60);
     for event in event_iter {
         ui.handle_event(&event);
         if let Some(args) = event.render_args() {
             gl.draw(args.viewport(), |_, gl| {
-                draw_ui(gl, &mut ui, &mut state);
+                draw_ui(gl, &mut ui, &*grid.lock().unwrap(), &mut state, &events_sender);
             });
         }
     }
+
+    guard.join();
 }
 
 fn make_window(opengl: OpenGL) -> GlutinWindow {
@@ -109,7 +151,7 @@ fn make_ui<'a>() -> conrod::Ui<GlyphCache<'a>> {
     conrod::Ui::new(glyph_cache, theme)
 }
 
-fn draw_ui<'a>(gl: &mut GlGraphics, ui: &mut conrod::Ui<GlyphCache<'a>>, state: &mut UI) {
+fn draw_ui<'a>(gl: &mut GlGraphics, ui: &mut conrod::Ui<GlyphCache<'a>>, grid: &CellGrid, state: &mut State, events: &SyncSender<UIEvent>) {
     use conrod::{Background, Colorable, WidgetMatrix, Button, Labelable, Positionable,
         Sizeable, Widget, TextBox};
     
@@ -119,7 +161,7 @@ fn draw_ui<'a>(gl: &mut GlGraphics, ui: &mut conrod::Ui<GlyphCache<'a>>, state: 
     .xy(0.0, 0.0)
     .dimensions(WINDOW_WIDTH as f64, WINDOW_HEIGHT as f64)
     .each_widget(ui, |ui, num, col, row, pos, dim| {
-        let &mut UI{ref grid, ref mut editing, ref mut editing_text} = state;
+        let &mut State{ref mut editing, ref mut editing_text} = state;
         Button::new()
             .label(grid.get_str(col, row))
             .point(pos)
@@ -133,16 +175,26 @@ fn draw_ui<'a>(gl: &mut GlGraphics, ui: &mut conrod::Ui<GlyphCache<'a>>, state: 
     });
 
     if let Some(coord) = state.editing {
-        let &mut UI{ref mut grid, ref mut editing, ref mut editing_text} = state;
+        let &mut State{ref mut editing, ref mut editing_text} = state;
         TextBox::new(editing_text)
             .middle()
             .width(500.0).height(100.0)
             .react(|s: &mut String| {
-                grid.set(coord, s.as_str());
-                *editing = None;
+                println!("REACT {}", s);
+                match ::parser::parse_formula(s.as_str()) {
+                    Ok(f) => {
+                        events.send(UIEvent::EditCell(coord, Box::new(f))).unwrap();
+                        *editing = None;
+                    },
+                    Err(x) => println!("{}", x),
+                }
             })
             .set(TEXTBOX_ID, ui);
     }
 
     ui.draw(gl);
+}
+
+pub enum UIEvent {
+    EditCell(Coord, Box<Formula>),
 }
